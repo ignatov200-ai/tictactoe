@@ -73,45 +73,38 @@ export function MenuScreen({
   const sizeNote = size === 3 ? 'победа — 3 в ряд' : 'победа — 4 в ряд';
 
   return (
-    <main className="menu-scroll relative z-10 mx-auto flex h-dvh w-full max-w-5xl flex-col overflow-hidden py-3 pl-[64px] pr-4 sm:py-5 sm:pl-[104px] sm:pr-8">
-      <div className="my-auto grid items-center gap-x-14 gap-y-5 md:grid-cols-[minmax(0,1fr)_400px]">
-        {/* ---- логотип из клеточек ---- */}
-        <div className="relative md:justify-self-start">
-          <div className="anim-fadeup relative inline-block">
-            <div aria-hidden className="tape absolute -left-6 -top-3 h-5 w-14 -rotate-12 rounded-[2px]" />
-            <div aria-hidden className="tape absolute -right-4 -top-2 h-4 w-11 rotate-6 rounded-[2px]" />
-            <div className="-rotate-1">
-              <LetterRow word="КРЕСТИКИ" tone="ink" />
-              <div className="ml-7 mt-1.5 sm:ml-10">
-                <LetterRow word="НОЛИКИ" tone="pen" />
-              </div>
+    <div className="menu-scroll relative flex h-full w-full flex-col items-center overflow-hidden">
+      {/* ---- логотип сверху ---- */}
+      <div className="anim-fadeup relative mt-2 shrink-0 text-center sm:mt-5">
+        <div className="relative inline-block">
+          <div aria-hidden className="tape absolute -left-6 -top-3 h-5 w-14 -rotate-12 rounded-[2px]" />
+          <div aria-hidden className="tape absolute -right-4 -top-2 h-4 w-11 rotate-6 rounded-[2px]" />
+          <div className="-rotate-1">
+            <LetterRow word="КРЕСТИКИ" tone="ink" />
+            <div className="ml-7 mt-1.5 sm:ml-10">
+              <LetterRow word="НОЛИКИ" tone="pen" />
             </div>
           </div>
-
-          <p
-            className="anim-fadeup mt-3 -rotate-1 font-hand text-xl leading-tight text-graphite/75 sm:text-2xl"
-            style={{ animationDelay: '0.08s' }}
-          >
-            школьная классика — собери ряд раньше соперника
-          </p>
-
-          {vkName && (
-            <div
-              className="anim-fadeup mt-2 inline-block rotate-1 rounded-sm bg-[#fdf3b1] px-2.5 py-0.5 font-hand text-lg font-semibold text-[#7a6a1f] shadow-[2px_3px_0_rgba(120,100,20,0.15)]"
-              style={{ animationDelay: '0.14s' }}
-            >
-              Привет, {vkName}!
-            </div>
-          )}
-
-          <MiniSheet
-            className="anim-floaty absolute -top-8 right-[-84px] hidden h-24 w-24 rotate-12 text-[#aebfdd] lg:block"
-            style={{ animationDuration: '8s' }}
-          />
         </div>
 
-        {/* ---- настройки партии ---- */}
-        <div className="anim-fadeup relative w-full max-w-md md:mx-0" style={{ animationDelay: '0.12s' }}>
+        {vkName && (
+          <div
+            className="anim-fadeup mt-2 inline-block rotate-1 rounded-sm bg-[#fdf3b1] px-2.5 py-0.5 font-hand text-lg font-semibold text-[#7a6a1f] shadow-[2px_3px_0_rgba(120,100,20,0.15)]"
+            style={{ animationDelay: '0.14s' }}
+          >
+            Привет, {vkName}!
+          </div>
+        )}
+
+        <MiniSheet
+          className="anim-floaty absolute -top-6 right-[-92px] hidden h-24 w-24 rotate-12 text-[#aebfdd] lg:block"
+          style={{ animationDuration: '8s' }}
+        />
+      </div>
+
+      {/* ---- настройки партии по центру ---- */}
+      <div className="flex min-h-0 w-full flex-1 items-center justify-center py-2">
+        <div className="anim-fadeup relative w-full max-w-md" style={{ animationDelay: '0.12s' }}>
           <div aria-hidden className="tape absolute -top-3 left-1/2 z-10 h-5 w-24 -translate-x-1/2 rotate-2 rounded-[2px]" />
           <div className="rounded-xl border border-[#ccd7e8] bg-card/95 p-4 shadow-[6px_7px_0_rgba(90,110,160,0.13)] sm:p-5">
             <h2 className="text-center text-[11px] font-bold uppercase tracking-[0.22em] text-pencil">
@@ -255,7 +248,7 @@ export function MenuScreen({
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
 

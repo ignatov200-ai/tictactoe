@@ -352,13 +352,21 @@ export default function App() {
 
   return (
     <div className="paper-grid relative h-[100dvh] overflow-hidden font-body text-graphite">
-      {/* красная линия полей и дырочки от скоросшивателя */}
-      <div aria-hidden className="absolute bottom-0 left-9 top-0 z-0 w-[2px] sm:left-20" style={MARGIN_STYLE} />
+      {/* красная линия полей и дырочки от скоросшивателя (на телефоне — только в игре) */}
+      <div
+        aria-hidden
+        className={`absolute bottom-0 left-9 top-0 z-0 w-[2px] sm:left-20 ${
+          screen === 'menu' ? 'hidden sm:block' : 'block'
+        }`}
+        style={MARGIN_STYLE}
+      />
       {[16, 50, 84].map((top) => (
         <div
           key={top}
           aria-hidden
-          className="absolute left-[7px] z-0 h-3 w-3 rounded-full border border-[#d8dbe2] bg-[#e9ebef] shadow-[inset_2px_2px_3px_rgba(60,70,90,0.25)] sm:left-6 sm:h-4 sm:w-4"
+          className={`absolute left-[7px] z-0 h-3 w-3 rounded-full border border-[#d8dbe2] bg-[#e9ebef] shadow-[inset_2px_2px_3px_rgba(60,70,90,0.25)] sm:left-6 sm:h-4 sm:w-4 ${
+            screen === 'menu' ? 'hidden sm:block' : 'block'
+          }`}
           style={{ top: `${top}%` }}
         />
       ))}
@@ -373,7 +381,11 @@ export default function App() {
       />
       <BgDoodles />
 
-      <main className="relative z-10 h-full pl-12 pr-3 sm:pl-[104px] sm:pr-8">
+      <main
+        className={`relative z-10 h-full ${
+          screen === 'menu' ? 'px-4 sm:px-[104px]' : 'pl-12 pr-3 sm:pl-[104px] sm:pr-8'
+        }`}
+      >
         {screen === 'menu' ? (
           <MenuScreen
             size={size}
