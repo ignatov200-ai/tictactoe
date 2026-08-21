@@ -363,6 +363,16 @@ export function IconArrow({ className = '' }: IconProps) {
   );
 }
 
+export function IconDownload({ className = '' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} {...iconBase} aria-hidden="true">
+      <path d="M12 3.5 C 11.7 7, 12.3 10.5, 12 14.2" />
+      <path d="M7.3 10.3 L12 15 L16.7 10.4" />
+      <path d="M4.5 17.6 C 7.5 19.2, 16.5 19.2, 19.5 17.7" />
+    </svg>
+  );
+}
+
 export function IconPencil({ className = '' }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} {...iconBase} aria-hidden="true">

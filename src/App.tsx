@@ -21,8 +21,11 @@ import {
   Scribble,
   Tally,
   VkBadge,
+  IconDownload,
   sketchVar,
 } from './components/decor';
+import type { ZipStatus } from './lib/downloadZip';
+import { downloadBuildZip } from './lib/downloadZip';
 
 type Phase = 'playing' | 'won' | 'draw';
 type Mode = 'duo' | 'cpu';
@@ -169,6 +172,26 @@ export default function App() {
     setMuted(next);
     sfx.setMuted(next);
     if (!next) sfx.click();
+  };
+
+  /* --- скачивание сборки в ZIP --- */
+  const [zipStatus, setZipStatus] = useState<ZipStatus>('idle');
+
+  useEffect(() => {
+    if (zipStatus === 'idle') return;
+    const t = window.setTimeout(() => setZipStatus('idle'), 3200);
+    return () => window.clearTimeout(t);
+  }, [zipStatus]);
+
+  const handleDownloadZip = async () => {
+    sfx.click();
+    setZipStatus('working');
+    try {
+      await downloadBuildZip();
+      setZipStatus('done');
+    } catch {
+      setZipStatus('error');
+    }
   };
 
   /* --- клавиатура: 1–9 (только 3×3), R — новая партия, Enter — переиграть --- */
@@ -561,7 +584,33 @@ export default function App() {
               : 'жми на клетки мышкой · R — новая партия'}
           </span>
           <span className="sm:hidden">Жми на клетки — и поехали!</span>
-          <VkBadge />
+          <span className="inline-flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={handleDownloadZip}
+              disabled={zipStatus === 'working'}
+              title="Собрать игру в ZIP — его можно загрузить на хостинг ВКонтакте вручную"
+              className={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg border-2 border-dashed px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] transition-all duration-150 ${
+                zipStatus === 'working'
+                  ? 'cursor-wait border-graphite/40 text-graphite/60'
+                  : zipStatus === 'done'
+                    ? 'border-pen/60 text-pen'
+                    : zipStatus === 'error'
+                      ? 'border-pen text-pen'
+                      : 'border-ink/50 text-ink hover:-translate-y-0.5 hover:border-ink hover:bg-[#e9f0fb] active:translate-y-0'
+              }`}
+            >
+              <IconDownload className="h-4 w-4" />
+              {zipStatus === 'working'
+                ? 'Собираю…'
+                : zipStatus === 'done'
+                  ? 'Скачано!'
+                  : zipStatus === 'error'
+                    ? 'Не вышло — ещё раз'
+                    : 'Скачать ZIP'}
+            </button>
+            <VkBadge />
+          </span>
         </footer>
       </main>
     </div>
