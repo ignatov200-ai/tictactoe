@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import vkBridge from '@vkontakte/vk-bridge';
-import type { BoardState, Difficulty, Player } from './game/logic';
-import { EMPTY_BOARD, getAiMove, getWinner, isFull, other, turnOf } from './game/logic';
+import type { BoardSize, BoardState, Difficulty, Player } from './game/logic';
+import { getAiMove, getWinner, isFull, makeEmptyBoard, other, turnOf } from './game/logic';
 import { sfx } from './game/sound';
 import { BoardView } from './components/Board';
 import type { DoodleKind } from './components/decor';
@@ -33,10 +33,16 @@ const DIFFICULTIES: { id: Difficulty; label: string }[] = [
   { id: 'hard', label: 'мастер' },
 ];
 
+const SIZES: { id: BoardSize; label: string; note: string }[] = [
+  { id: 3, label: '3×3', note: 'классика, 3 в ряд' },
+  { id: 5, label: '5×5', note: 'большое, 4 в ряд' },
+];
+
 const MARGIN_STYLE: CSSProperties = { background: 'rgba(238, 158, 158, 0.75)' };
 
 export default function App() {
-  const [board, setBoard] = useState<BoardState>(() => [...EMPTY_BOARD]);
+  const [size, setSize] = useState<BoardSize>(3);
+  const [board, setBoard] = useState<BoardState>(() => makeEmptyBoard(3));
   const [phase, setPhase] = useState<Phase>('playing');
   const [winner, setWinner] = useState<Player | null>(null);
   const [line, setLine] = useState<number[] | null>(null);
@@ -68,7 +74,7 @@ export default function App() {
     if (mover === 'x') sfx.placeX();
     else sfx.placeO();
 
-    const w = getWinner(next);
+    const w = getWinner(next, size);
     if (w) {
       setLine(w.line);
       setWinner(w.player);
@@ -103,18 +109,18 @@ export default function App() {
     if (mode !== 'cpu' || phase !== 'playing' || turnOf(board, starter) !== 'o') return;
     const t = window.setTimeout(
       () => {
-        const i = getAiMove(board, 'o', difficulty);
+        const i = getAiMove(board, 'o', difficulty, size);
         if (i >= 0) applyMove(i, 'o');
       },
       520 + Math.random() * 480,
     );
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [board, mode, phase, starter, difficulty]);
+  }, [board, mode, phase, starter, difficulty, size]);
 
   const newRound = () => {
     sfx.click();
-    setBoard([...EMPTY_BOARD]);
+    setBoard(makeEmptyBoard(size));
     setLine(null);
     setWinner(null);
     setPhase('playing');
@@ -124,7 +130,7 @@ export default function App() {
 
   const resetMatch = () => {
     sfx.click();
-    setBoard([...EMPTY_BOARD]);
+    setBoard(makeEmptyBoard(size));
     setLine(null);
     setWinner(null);
     setPhase('playing');
@@ -137,12 +143,25 @@ export default function App() {
     if (m === mode) return;
     sfx.click();
     setMode(m);
-    setBoard([...EMPTY_BOARD]);
+    setBoard(makeEmptyBoard(size));
     setLine(null);
     setWinner(null);
     setPhase('playing');
     setStarter('x');
     setRound(1);
+  };
+
+  const switchSize = (s: BoardSize) => {
+    if (s === size) return;
+    sfx.click();
+    setSize(s);
+    setBoard(makeEmptyBoard(s));
+    setLine(null);
+    setWinner(null);
+    setPhase('playing');
+    setStarter('x');
+    setRound(1);
+    setScores({ x: 0, o: 0, d: 0 });
   };
 
   const toggleSound = () => {
@@ -152,23 +171,20 @@ export default function App() {
     if (!next) sfx.click();
   };
 
-  /* --- клавиатура: 1–9, R — новая партия, Enter — переиграть --- */
+  /* --- клавиатура: 1–9 (только 3×3), R — новая партия, Enter — переиграть --- */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key >= '1' && e.key <= '9') {
+      if (size === 3 && e.key >= '1' && e.key <= '9') {
         onTapCell(Number(e.key) - 1);
       } else if (e.key === 'r' || e.key === 'R' || e.key === 'к' || e.key === 'К') {
         newRound();
-      } else if (e.key === 'Enter' && phaseRef.current !== 'playing') {
+      } else if (e.key === 'Enter' && phase !== 'playing') {
         newRound();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
-
-  const phaseRef = { current: phase };
-  phaseRef.current = phase;
 
   const burstSeed = phase === 'playing' ? 0 : round * 10 + (phase === 'won' ? 1 : 2);
   const leader: 'x' | 'o' | null =
@@ -234,7 +250,7 @@ export default function App() {
             {mode === 'cpu' && current === 'x' ? ' — твой ход' : ''}
           </p>
           <p className="mt-0.5 text-xs text-pencil sm:text-sm">
-            партия {round} · первым ходит{' '}
+            партия {round} · победа — {size === 3 ? '3' : '4'} в ряд · первым ходит{' '}
             {starter === 'x' ? (
               <InkX still className="mx-0.5 inline h-3.5 w-3.5 align-[-2px] text-ink" />
             ) : (
@@ -321,11 +337,14 @@ export default function App() {
             <div className="min-h-[86px] sm:min-h-[96px]">{statusNode()}</div>
 
             <div
-              className="relative mx-auto mt-2 w-full max-w-[470px] lg:mx-0"
-              style={{ width: 'min(100%, 470px, 62svh)' }}
+              className="relative mx-auto mt-2 w-full lg:mx-0"
+              style={{
+                width: size === 5 ? 'min(100%, 540px, 66svh)' : 'min(100%, 470px, 62svh)',
+              }}
             >
               <BoardView
                 board={board}
+                size={size}
                 current={current}
                 interactive={!cpuThinking}
                 ended={ended}
@@ -398,7 +417,7 @@ export default function App() {
                 ))}
               </div>
               <p className="mt-3 border-t border-dashed border-[#ccd7e8] pt-3 text-xs text-pencil">
-                Партия {round} · первым ходит {markName(starter)}
+                Поле {size}×{size} · партия {round} · первым ходит {markName(starter)}
               </p>
             </div>
 
@@ -410,6 +429,36 @@ export default function App() {
               <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-pencil">
                 Как играем
               </h2>
+
+              <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.18em] text-pencil">
+                Поле
+              </p>
+              <div className="mt-1.5 flex gap-2">
+                {SIZES.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => switchSize(s.id)}
+                    aria-pressed={size === s.id}
+                    className={`min-w-[92px] cursor-pointer rounded-lg border-2 px-3 py-1.5 text-left transition-all duration-150 ${
+                      size === s.id
+                        ? '-rotate-1 border-graphite bg-white shadow-[3px_3px_0_rgba(70,84,116,0.22)]'
+                        : 'border-transparent text-pencil hover:bg-[#eef2fa]'
+                    }`}
+                  >
+                    <span
+                      className={`block font-hand text-[22px] font-bold leading-none ${
+                        size === s.id ? 'text-graphite' : ''
+                      }`}
+                    >
+                      {s.label}
+                    </span>
+                    <span className="mt-0.5 block text-[11px] leading-tight text-pencil">
+                      {s.note}
+                    </span>
+                  </button>
+                ))}
+              </div>
 
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <button
@@ -471,7 +520,10 @@ export default function App() {
                   <p className="mt-2 text-xs leading-snug text-pencil">
                     {difficulty === 'easy' && 'Просто разминается — подыграет тебе.'}
                     {difficulty === 'medium' && 'Иногда зевает, но умеет блокировать.'}
-                    {difficulty === 'hard' && 'Играет идеально. Лучшее, что ты получишь, — ничья.'}
+                    {difficulty === 'hard' &&
+                      (size === 3
+                        ? 'Играет идеально. Лучшее, что ты получишь, — ничья.'
+                        : 'Просчитывает вилки и угрозы по всему полю.')}
                   </p>
                 </div>
               )}
@@ -504,7 +556,9 @@ export default function App() {
         >
           <span className="hidden items-center gap-1.5 sm:inline-flex">
             <IconPencil className="h-4 w-4" />
-            клавиши 1–9 — ход · R — новая партия
+            {size === 3
+              ? 'клавиши 1–9 — ход · R — новая партия'
+              : 'жми на клетки мышкой · R — новая партия'}
           </span>
           <span className="sm:hidden">Жми на клетки — и поехали!</span>
           <VkBadge />

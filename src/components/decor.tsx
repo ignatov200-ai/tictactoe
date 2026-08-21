@@ -47,25 +47,38 @@ export function InkO({ className = '', still = false }: { className?: string; st
 }
 
 /* ---------- рукописная сетка поля ---------- */
-export function GridLines({ className = '' }: { className?: string }) {
-  const paths = [
-    'M104 8 C 100 80, 107 210, 102 292',
-    'M199 10 C 204 95, 195 215, 200 290',
-    'M8 103 C 90 98, 205 107, 292 101',
-    'M10 199 C 100 204, 215 195, 290 200',
-  ];
+export function GridLines({ size = 3, className = '' }: { size?: number; className?: string }) {
+  const pos = Array.from({ length: size - 1 }, (_, k) => ((k + 1) / size) * 100);
   return (
-    <svg viewBox="0 0 300 300" className={className} fill="none" aria-hidden="true">
-      {paths.map((d, i) => (
+    <svg
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      className={className}
+      fill="none"
+      aria-hidden="true"
+    >
+      {pos.map((p, k) => (
         <path
-          key={i}
-          d={d}
+          key={`v${k}`}
+          d={`M ${p} 2 Q ${p + (k % 2 ? 0.7 : -0.7)} 50 ${p} 98`}
           stroke="currentColor"
-          strokeWidth={5}
+          strokeWidth={1.6}
           strokeLinecap="round"
           opacity={0.8}
           className="sketch"
-          style={sketchVar(330, i * 0.07)}
+          style={sketchVar(102, k * 0.06)}
+        />
+      ))}
+      {pos.map((p, k) => (
+        <path
+          key={`h${k}`}
+          d={`M 2 ${p} Q 50 ${p + (k % 2 ? -0.7 : 0.7)} 98 ${p}`}
+          stroke="currentColor"
+          strokeWidth={1.6}
+          strokeLinecap="round"
+          opacity={0.8}
+          className="sketch"
+          style={sketchVar(102, k * 0.06 + 0.25)}
         />
       ))}
     </svg>
@@ -73,31 +86,50 @@ export function GridLines({ className = '' }: { className?: string }) {
 }
 
 /* ---------- зачёркивающая линия победной комбинации ---------- */
-export function StrikeLine({ line, className = '' }: { line: number[]; className?: string }) {
-  const c = (i: number): [number, number] => [(i % 3) * 100 + 50, Math.floor(i / 3) * 100 + 50];
-  const [x1, y1] = c(line[0]);
-  const [x2, y2] = c(line[2]);
+export function StrikeLine({
+  line,
+  size,
+  className = '',
+}: {
+  line: number[];
+  size: number;
+  className?: string;
+}) {
+  const cell = 100 / size;
+  const center = (i: number): [number, number] => [
+    ((i % size) + 0.5) * cell,
+    (Math.floor(i / size) + 0.5) * cell,
+  ];
+  const [x1, y1] = center(line[0]);
+  const [x2, y2] = center(line[line.length - 1]);
   const dx = x2 - x1;
   const dy = y2 - y1;
   const L = Math.hypot(dx, dy) || 1;
   const ux = dx / L;
   const uy = dy / L;
-  const ax = x1 - ux * 32;
-  const ay = y1 - uy * 32;
-  const bx = x2 + ux * 32;
-  const by = y2 + uy * 32;
-  const mx = (ax + bx) / 2 - uy * 13;
-  const my = (ay + by) / 2 + ux * 13;
+  const ax = x1 - ux * cell * 0.34;
+  const ay = y1 - uy * cell * 0.34;
+  const bx = x2 + ux * cell * 0.34;
+  const by = y2 + uy * cell * 0.34;
+  const mx = (ax + bx) / 2 - uy * cell * 0.16;
+  const my = (ay + by) / 2 + ux * cell * 0.16;
+  const len = Math.hypot(bx - ax, by - ay) + 8;
   return (
-    <svg viewBox="0 0 300 300" className={className} fill="none" aria-hidden="true">
+    <svg
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      className={className}
+      fill="none"
+      aria-hidden="true"
+    >
       <path
         d={`M ${ax} ${ay} Q ${mx} ${my} ${bx} ${by}`}
         stroke="currentColor"
-        strokeWidth={9}
+        strokeWidth={cell * 0.1}
         strokeLinecap="round"
         opacity={0.7}
         className="sketch"
-        style={sketchVar(470, 0.12)}
+        style={sketchVar(len, 0.12)}
       />
     </svg>
   );
