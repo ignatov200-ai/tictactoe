@@ -363,6 +363,70 @@ export function IconArrow({ className = '' }: IconProps) {
   );
 }
 
+export function IconPlay({ className = '' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} {...iconBase} aria-hidden="true">
+      <path
+        d="M8.2 5.4 C 12.6 8, 15.4 10.2, 18.6 12.1 C 15.3 14, 12.4 16.2, 8.3 18.7 C 8 14.2, 8.4 9.9, 8.2 5.4 Z"
+        strokeWidth={2.1}
+      />
+    </svg>
+  );
+}
+
+export function IconArrowLeft({ className = '' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} {...iconBase} strokeWidth={2.2} aria-hidden="true">
+      <path d="M19.5 12.1 C 14.5 11.7, 10 12.5, 5 12" />
+      <path d="M9.6 7.4 L4.8 12 L9.7 16.5" />
+    </svg>
+  );
+}
+
+/* ---------- мини-сетка для выбора размера поля ---------- */
+export function MiniGrid({ n, className = '' }: { n: 3 | 5; className?: string }) {
+  const cell = n === 3 ? 20 : 20;
+  const total = n * cell;
+  const lines: string[] = [];
+  for (let i = 1; i < n; i++) {
+    const p = i * cell;
+    lines.push(`M ${p} 2 C ${p - 1.2} ${total / 3}, ${p + 1.2} ${(total * 2) / 3}, ${p} ${total - 2}`);
+    lines.push(`M 2 ${p} C ${total / 3} ${p + 1.2}, ${(total * 2) / 3} ${p - 1.2}, ${total - 2} ${p}`);
+  }
+  const x = (cx: number, cy: number, r: number, key: string) => (
+    <g key={key} strokeWidth={n === 3 ? 3 : 2.4} strokeLinecap="round">
+      <path d={`M ${cx - r} ${cy - r} L ${cx + r} ${cy + r}`} />
+      <path d={`M ${cx + r} ${cy - r} L ${cx - r} ${cy + r}`} />
+    </g>
+  );
+  const o = (cx: number, cy: number, r: number, key: string) => (
+    <circle key={key} cx={cx} cy={cy} r={r} strokeWidth={n === 3 ? 3 : 2.4} />
+  );
+  return (
+    <svg viewBox={`0 0 ${total} ${total}`} className={className} fill="none" stroke="currentColor" aria-hidden="true">
+      <g strokeWidth={2} strokeLinecap="round" opacity={0.75}>
+        {lines.map((d, i) => (
+          <path key={i} d={d} />
+        ))}
+      </g>
+      {n === 3 ? (
+        <>
+          {x(10, 10, 5, 'a')}
+          {o(30, 30, 5.5, 'b')}
+          {x(50, 50, 5, 'c')}
+        </>
+      ) : (
+        <>
+          {x(10, 30, 4.5, 'a')}
+          {o(50, 50, 4.5, 'b')}
+          {x(90, 70, 4.5, 'c')}
+          {o(70, 10, 4.5, 'd')}
+        </>
+      )}
+    </svg>
+  );
+}
+
 export function IconDownload({ className = '' }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} {...iconBase} aria-hidden="true">

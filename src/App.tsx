@@ -10,40 +10,28 @@ import {
   Burst,
   Doodle,
   IconArrow,
+  IconArrowLeft,
   IconBot,
   IconMute,
   IconPencil,
   IconRestart,
   IconSound,
-  IconUsers,
   InkO,
   InkX,
   Scribble,
-  Tally,
-  VkBadge,
-  IconDownload,
-  sketchVar,
 } from './components/decor';
-import type { ZipStatus } from './lib/downloadZip';
+import { MenuScreen } from './components/MenuScreen';
+import type { Mode } from './components/MenuScreen';
 import { downloadBuildZip } from './lib/downloadZip';
+import type { ZipStatus } from './lib/downloadZip';
 
 type Phase = 'playing' | 'won' | 'draw';
-type Mode = 'duo' | 'cpu';
-
-const DIFFICULTIES: { id: Difficulty; label: string }[] = [
-  { id: 'easy', label: 'лёгкий' },
-  { id: 'medium', label: 'средний' },
-  { id: 'hard', label: 'мастер' },
-];
-
-const SIZES: { id: BoardSize; label: string; note: string }[] = [
-  { id: 3, label: '3×3', note: 'классика, 3 в ряд' },
-  { id: 5, label: '5×5', note: 'большое, 4 в ряд' },
-];
+type Screen = 'menu' | 'game';
 
 const MARGIN_STYLE: CSSProperties = { background: 'rgba(238, 158, 158, 0.75)' };
 
 export default function App() {
+  const [screen, setScreen] = useState<Screen>('menu');
   const [size, setSize] = useState<BoardSize>(3);
   const [board, setBoard] = useState<BoardState>(() => makeEmptyBoard(3));
   const [phase, setPhase] = useState<Phase>('playing');
@@ -56,6 +44,7 @@ export default function App() {
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [vkName, setVkName] = useState<string | null>(null);
   const [muted, setMuted] = useState(sfx.isMuted());
+  const [zipStatus, setZipStatus] = useState<ZipStatus>('idle');
 
   const current = useMemo(() => turnOf(board, starter), [board, starter]);
   const ended = phase !== 'playing';
@@ -69,6 +58,22 @@ export default function App() {
       .then((u) => setVkName(u.first_name))
       .catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (zipStatus === 'idle') return;
+    const t = window.setTimeout(() => setZipStatus('idle'), 3200);
+    return () => window.clearTimeout(t);
+  }, [zipStatus]);
+
+  const clearBoard = (sz: BoardSize) => {
+    setBoard(makeEmptyBoard(sz));
+    setLine(null);
+    setWinner(null);
+    setPhase('playing');
+    setStarter('x');
+    setRound(1);
+    setScores({ x: 0, o: 0, d: 0 });
+  };
 
   const applyMove = (i: number, mover: Player) => {
     const next = [...board];
@@ -107,9 +112,15 @@ export default function App() {
     tryMove(i);
   };
 
-  /* --- ход компьютера --- */
+  /* --- ход компьютера (только на экране игры) --- */
   useEffect(() => {
-    if (mode !== 'cpu' || phase !== 'playing' || turnOf(board, starter) !== 'o') return;
+    if (
+      screen !== 'game' ||
+      mode !== 'cpu' ||
+      phase !== 'playing' ||
+      turnOf(board, starter) !== 'o'
+    )
+      return;
     const t = window.setTimeout(
       () => {
         const i = getAiMove(board, 'o', difficulty, size);
@@ -119,7 +130,7 @@ export default function App() {
     );
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [board, mode, phase, starter, difficulty, size]);
+  }, [board, mode, phase, starter, difficulty, size, screen]);
 
   const newRound = () => {
     sfx.click();
@@ -133,38 +144,31 @@ export default function App() {
 
   const resetMatch = () => {
     sfx.click();
-    setBoard(makeEmptyBoard(size));
-    setLine(null);
-    setWinner(null);
-    setPhase('playing');
-    setStarter('x');
-    setRound(1);
-    setScores({ x: 0, o: 0, d: 0 });
+    clearBoard(size);
   };
 
-  const switchMode = (m: Mode) => {
-    if (m === mode) return;
-    sfx.click();
-    setMode(m);
-    setBoard(makeEmptyBoard(size));
-    setLine(null);
-    setWinner(null);
-    setPhase('playing');
-    setStarter('x');
-    setRound(1);
-  };
-
-  const switchSize = (s: BoardSize) => {
+  const handleSize = (s: BoardSize) => {
     if (s === size) return;
     sfx.click();
     setSize(s);
-    setBoard(makeEmptyBoard(s));
-    setLine(null);
-    setWinner(null);
-    setPhase('playing');
-    setStarter('x');
-    setRound(1);
-    setScores({ x: 0, o: 0, d: 0 });
+    clearBoard(s);
+  };
+
+  const handleMode = (m: Mode) => {
+    if (m === mode) return;
+    sfx.click();
+    setMode(m);
+    clearBoard(size);
+  };
+
+  const play = () => {
+    sfx.click();
+    setScreen('game');
+  };
+
+  const backToMenu = () => {
+    sfx.click();
+    setScreen('menu');
   };
 
   const toggleSound = () => {
@@ -173,15 +177,6 @@ export default function App() {
     sfx.setMuted(next);
     if (!next) sfx.click();
   };
-
-  /* --- скачивание сборки в ZIP --- */
-  const [zipStatus, setZipStatus] = useState<ZipStatus>('idle');
-
-  useEffect(() => {
-    if (zipStatus === 'idle') return;
-    const t = window.setTimeout(() => setZipStatus('idle'), 3200);
-    return () => window.clearTimeout(t);
-  }, [zipStatus]);
 
   const handleDownloadZip = async () => {
     sfx.click();
@@ -194,15 +189,21 @@ export default function App() {
     }
   };
 
-  /* --- клавиатура: 1–9 (только 3×3), R — новая партия, Enter — переиграть --- */
+  /* --- клавиатура --- */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (screen === 'menu') {
+        if (e.key === 'Enter') play();
+        return;
+      }
       if (size === 3 && e.key >= '1' && e.key <= '9') {
         onTapCell(Number(e.key) - 1);
       } else if (e.key === 'r' || e.key === 'R' || e.key === 'к' || e.key === 'К') {
         newRound();
       } else if (e.key === 'Enter' && phase !== 'playing') {
         newRound();
+      } else if (e.key === 'Escape') {
+        backToMenu();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -210,12 +211,10 @@ export default function App() {
   });
 
   const burstSeed = phase === 'playing' ? 0 : round * 10 + (phase === 'won' ? 1 : 2);
-  const leader: 'x' | 'o' | null =
-    scores.x === scores.o ? null : scores.x > scores.o ? 'x' : 'o';
-
   const markName = (p: Player) => (p === 'x' ? 'крестики' : 'нолики');
   const markColor = (p: Player) => (p === 'x' ? 'text-ink' : 'text-pen');
 
+  /* ---------- строка статуса ---------- */
   const statusNode = () => {
     if (phase === 'won' && winner) {
       const text =
@@ -227,33 +226,29 @@ export default function App() {
             ? 'Победили крестики!'
             : 'Победили нолики!';
       return (
-        <div key={`won-${round}`} className="anim-pop">
-          <p className={`inline-block -rotate-1 font-hand text-4xl font-bold leading-tight sm:text-5xl ${markColor(winner)}`}>
+        <div key={`won-${round}`} className="anim-pop text-center sm:text-left">
+          <p className={`inline-block -rotate-1 font-hand text-3xl font-bold leading-tight sm:text-4xl ${markColor(winner)}`}>
             {text}
           </p>
-          <Scribble className={`-mt-1 h-3 w-44 sm:w-60 ${markColor(winner)}`} />
-          <p className="mt-2 text-sm text-pencil">
-            +1 к счёту · тапни по полю или жми «ещё раз»
-          </p>
+          <Scribble className={`mx-auto -mt-1 h-2.5 w-36 sm:mx-0 sm:w-44 ${markColor(winner)}`} />
         </div>
       );
     }
     if (phase === 'draw') {
       return (
-        <div key={`draw-${round}`} className="anim-pop">
-          <p className="inline-block rotate-1 font-hand text-4xl font-bold leading-tight text-graphite sm:text-5xl">
-            Ничья! <span className="text-2xl sm:text-3xl">{'¯\\_(ツ)_/¯'}</span>
+        <div key={`draw-${round}`} className="anim-pop text-center sm:text-left">
+          <p className="inline-block rotate-1 font-hand text-3xl font-bold leading-tight text-graphite sm:text-4xl">
+            Ничья! <span className="text-xl sm:text-2xl">{'¯\\_(ツ)_/¯'}</span>
           </p>
-          <Scribble className="-mt-1 h-3 w-36 text-pencil" />
-          <p className="mt-2 text-sm text-pencil">все клетки заняты — переиграем?</p>
+          <Scribble className="mx-auto -mt-1 h-2.5 w-28 text-pencil sm:mx-0 sm:w-32" />
         </div>
       );
     }
     if (cpuThinking) {
       return (
-        <div className="flex items-center gap-3">
-          <IconBot className="h-8 w-8 text-pen" />
-          <p className="font-hand text-3xl font-bold text-pen sm:text-4xl">
+        <div className="flex items-center justify-center gap-2.5 sm:justify-start">
+          <IconBot className="h-7 w-7 text-pen" />
+          <p className="font-hand text-2xl font-bold text-pen sm:text-3xl">
             Компьютер думает
             <span className="dots align-middle">
               <i />
@@ -265,49 +260,132 @@ export default function App() {
       );
     }
     return (
-      <div className="flex items-center gap-3">
-        <IconArrow className={`anim-wiggle h-9 w-9 shrink-0 ${markColor(current)}`} />
-        <div>
-          <p className={`font-hand text-3xl font-bold leading-tight sm:text-4xl ${markColor(current)}`}>
-            Ходят {markName(current)}
-            {mode === 'cpu' && current === 'x' ? ' — твой ход' : ''}
-          </p>
-          <p className="mt-0.5 text-xs text-pencil sm:text-sm">
-            партия {round} · победа — {size === 3 ? '3' : '4'} в ряд · первым ходит{' '}
-            {starter === 'x' ? (
-              <InkX still className="mx-0.5 inline h-3.5 w-3.5 align-[-2px] text-ink" />
-            ) : (
-              <InkO still className="mx-0.5 inline h-3.5 w-3.5 align-[-2px] text-pen" />
-            )}
-            {mode === 'cpu' ? ' · ты играешь крестиками' : ''}
-          </p>
-        </div>
+      <div className="flex items-center justify-center gap-2.5 sm:justify-start">
+        <IconArrow className={`anim-wiggle h-7 w-7 shrink-0 ${markColor(current)}`} />
+        <p className={`font-hand text-2xl font-bold leading-tight sm:text-3xl ${markColor(current)}`}>
+          Ходят {markName(current)}
+          {mode === 'cpu' && current === 'x' ? ' — твой ход' : ''}
+        </p>
       </div>
     );
   };
 
-  const scoreCols: { key: 'x' | 'd' | 'o'; label: string; cls: string }[] = [
-    { key: 'x', label: 'крестики', cls: 'text-ink' },
-    { key: 'd', label: 'ничьи', cls: 'text-pencil' },
-    { key: 'o', label: 'нолики', cls: 'text-pen' },
-  ];
+  /* ---------- экран игры ---------- */
+  const gameScreen = (
+    <div key="game" className="anim-screenin flex h-full min-h-0 flex-col">
+      <header className="flex items-center gap-2 border-b border-dashed border-[#c6d2e6] px-1 pb-2 pt-2.5 sm:gap-3 sm:px-2">
+        <button
+          type="button"
+          onClick={backToMenu}
+          title="В меню (Esc)"
+          className="flex cursor-pointer items-center gap-1 rounded-lg border-2 border-[#b9c6dd] bg-card px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider text-graphite shadow-[2px_2px_0_rgba(90,110,160,0.15)] transition-all hover:-translate-x-0.5 hover:border-ink hover:text-ink active:translate-x-0"
+        >
+          <IconArrowLeft className="h-4 w-4" />
+          <span className="hidden sm:inline">Меню</span>
+        </button>
+        <h1 className="hidden -rotate-1 font-hand text-2xl font-bold leading-none min-[400px]:block sm:text-3xl">
+          <span className="text-ink">Крестики</span>
+          <span className="text-pencil">-</span>
+          <span className="text-pen">нолики</span>
+        </h1>
+        <span className="hidden -rotate-1 rounded border-2 border-dashed border-pencil/40 px-2 py-0.5 text-[11px] font-semibold text-pencil md:inline-block">
+          {size}×{size} · {size === 3 ? '3' : '4'} в ряд · партия {round} · первым {markName(starter)}
+        </span>
+        <div className="flex-1" />
+        <div className="flex items-center gap-1.5 rounded-lg border border-[#ccd7e8] bg-card/80 px-2.5 py-1 shadow-[2px_2px_0_rgba(90,110,160,0.12)]">
+          <InkX still className="h-4 w-4 text-ink" />
+          <span className="font-hand text-xl font-bold leading-none text-ink">{scores.x}</span>
+          <span className="font-hand text-lg leading-none text-pencil">:</span>
+          <span className="font-hand text-xl font-bold leading-none text-pen">{scores.o}</span>
+          <InkO still className="h-4 w-4 text-pen" />
+          {scores.d > 0 && (
+            <span className="ml-1 hidden text-[10px] font-semibold text-pencil sm:inline">
+              ничьи {scores.d}
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={toggleSound}
+          aria-label={muted ? 'Включить звук' : 'Выключить звук'}
+          className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full border-2 border-[#b9c6dd] bg-card text-graphite transition-transform hover:-rotate-6 hover:scale-105 active:scale-95"
+        >
+          {muted ? <IconMute className="h-4 w-4" /> : <IconSound className="h-4 w-4" />}
+        </button>
+      </header>
+
+      <div className="flex min-h-[52px] items-center justify-center px-2 py-1 sm:min-h-[58px] sm:justify-start sm:px-3">
+        {statusNode()}
+      </div>
+
+      <div className="flex min-h-0 flex-1 items-center justify-center px-2 sm:px-4">
+        <div className="board-fit relative">
+          <BoardView
+            board={board}
+            size={size}
+            current={current}
+            interactive={!cpuThinking}
+            ended={ended}
+            line={line}
+            onTapCell={onTapCell}
+          />
+          {ended && <Burst seed={burstSeed} />}
+          {ended && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center">
+              <button
+                type="button"
+                onClick={newRound}
+                className="anim-pop -rotate-2 cursor-pointer rounded-xl border-2 border-ink bg-card px-6 py-2 font-hand text-2xl font-bold text-ink shadow-[4px_5px_0_rgba(43,75,216,0.22)] transition-transform duration-150 hover:rotate-0 hover:scale-105 active:scale-95 sm:text-3xl"
+              >
+                Ещё раз!
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-center gap-3 px-2 pb-3 pt-1.5 sm:justify-between sm:px-4 sm:pb-3.5">
+        <span className="hidden items-center gap-1.5 text-[11px] text-pencil sm:inline-flex">
+          <IconPencil className="h-4 w-4" />
+          {size === 3 ? 'клавиши 1–9 — ход · R — заново' : 'R — заново · Esc — в меню'}
+        </span>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={resetMatch}
+            className="cursor-pointer rounded px-1.5 py-1 text-[11px] font-semibold text-pencil underline decoration-dotted decoration-2 underline-offset-4 transition-colors hover:text-pen"
+          >
+            сбросить счёт
+          </button>
+          <button
+            type="button"
+            onClick={newRound}
+            className="flex cursor-pointer items-center gap-2 rounded-lg border-2 border-ink bg-ink px-4 py-2 text-xs font-bold text-[#f2f5ff] shadow-[3px_4px_0_rgba(43,75,216,0.3)] transition-all duration-150 hover:-translate-y-0.5 hover:bg-inkdeep active:translate-y-0.5 active:shadow-none"
+          >
+            <IconRestart className="h-4 w-4" />
+            Новая партия
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="paper-grid relative min-h-screen overflow-x-hidden font-body text-graphite">
+    <div className="paper-grid relative h-[100dvh] overflow-hidden font-body text-graphite">
       {/* красная линия полей и дырочки от скоросшивателя */}
-      <div aria-hidden className="fixed bottom-0 left-12 top-0 z-0 w-[2px] sm:left-20" style={MARGIN_STYLE} />
+      <div aria-hidden className="absolute bottom-0 left-9 top-0 z-0 w-[2px] sm:left-20" style={MARGIN_STYLE} />
       {[16, 50, 84].map((top) => (
         <div
           key={top}
           aria-hidden
-          className="fixed left-2.5 z-0 h-4 w-4 rounded-full border border-[#d8dbe2] bg-[#e9ebef] shadow-[inset_2px_2px_3px_rgba(60,70,90,0.25)] sm:left-6"
+          className="absolute left-[7px] z-0 h-3 w-3 rounded-full border border-[#d8dbe2] bg-[#e9ebef] shadow-[inset_2px_2px_3px_rgba(60,70,90,0.25)] sm:left-6 sm:h-4 sm:w-4"
           style={{ top: `${top}%` }}
         />
       ))}
       {/* лёгкая тень по краям листа */}
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-0 z-0"
+        className="pointer-events-none absolute inset-0 z-0"
         style={{
           background:
             'radial-gradient(130% 100% at 50% 6%, transparent 55%, rgba(93,105,140,0.10) 100%)',
@@ -315,303 +393,30 @@ export default function App() {
       />
       <BgDoodles />
 
-      <main className="relative z-10 mx-auto max-w-5xl py-6 pl-[68px] pr-4 sm:py-10 sm:pl-[112px] sm:pr-10">
-        {/* ---------- шапка ---------- */}
-        <header className="anim-fadeup flex flex-wrap items-start justify-between gap-4">
-          <div className="relative">
-            <div
-              aria-hidden
-              className="tape absolute -left-5 -top-3 h-5 w-16 -rotate-12 rounded-[2px]"
-            />
-            <h1 className="-rotate-1 font-hand text-[44px] font-bold leading-[0.95] sm:text-6xl">
-              <span className="text-ink">Крестики</span>
-              <span className="text-pencil">-</span>
-              <span className="text-pen">нолики</span>
-            </h1>
-            <div className="mt-2 flex flex-wrap items-center gap-3">
-              <p className="max-w-xs text-sm leading-snug text-pencil">
-                Партия на листке в клетку: сыграй с другом рядом или попробуй обыграть компьютер.
-              </p>
-              <span className="inline-block -rotate-2 rounded border-2 border-dashed border-pen/50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-pen/80">
-                школьная классика
-              </span>
-            </div>
-            {vkName && (
-              <div className="mt-3 inline-block rotate-1 rounded-sm bg-[#fdf3b1] px-3 py-1.5 font-hand text-2xl font-semibold text-[#7a6a1f] shadow-[2px_3px_0_rgba(120,100,20,0.15)]">
-                Привет, {vkName}!
-              </div>
-            )}
-          </div>
-
-          <button
-            type="button"
-            onClick={toggleSound}
-            aria-label={muted ? 'Включить звук' : 'Выключить звук'}
-            title={muted ? 'Включить звук' : 'Выключить звук'}
-            className="grid h-11 w-11 cursor-pointer place-items-center rounded-full border-2 border-[#b9c6dd] bg-card text-graphite shadow-[2px_3px_0_rgba(90,110,160,0.18)] transition-transform hover:-rotate-6 hover:scale-105 active:scale-95"
-          >
-            {muted ? <IconMute className="h-5 w-5" /> : <IconSound className="h-5 w-5" />}
-          </button>
-        </header>
-
-        {/* ---------- игра ---------- */}
-        <div className="mt-6 grid items-start gap-x-12 gap-y-8 lg:grid-cols-[minmax(0,1fr)_310px]">
-          <section className="anim-fadeup" style={{ animationDelay: '0.08s' }}>
-            <div className="min-h-[86px] sm:min-h-[96px]">{statusNode()}</div>
-
-            <div
-              className="relative mx-auto mt-2 w-full lg:mx-0"
-              style={{
-                width: size === 5 ? 'min(100%, 540px, 66svh)' : 'min(100%, 470px, 62svh)',
-              }}
-            >
-              <BoardView
-                board={board}
-                size={size}
-                current={current}
-                interactive={!cpuThinking}
-                ended={ended}
-                line={line}
-                onTapCell={onTapCell}
-              />
-
-              {ended && <Burst seed={burstSeed} />}
-
-              {ended && (
-                <div className="absolute inset-0 z-30 flex items-center justify-center">
-                  <button
-                    type="button"
-                    onClick={newRound}
-                    className="anim-pop -rotate-2 cursor-pointer rounded-xl border-2 border-ink bg-card px-7 py-2.5 font-hand text-3xl font-bold text-ink shadow-[4px_5px_0_rgba(43,75,216,0.22)] transition-transform duration-150 hover:rotate-0 hover:scale-105 active:scale-95"
-                  >
-                    Ещё раз!
-                  </button>
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* ---------- боковая колонка ---------- */}
-          <aside className="flex flex-col gap-7">
-            {/* счёт */}
-            <div
-              className="anim-fadeup relative order-1 -rotate-1 rounded-lg border border-[#ccd7e8] bg-card/90 p-5 shadow-[5px_6px_0_rgba(90,110,160,0.12)] lg:order-2"
-              style={{ animationDelay: '0.16s' }}
-            >
-              <div aria-hidden className="tape absolute -top-2.5 left-1/2 h-5 w-20 -translate-x-1/2 rotate-2 rounded-[2px]" />
-              <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-pencil">
-                Счёт матча
-              </h2>
-              <div className="mt-3 grid grid-cols-3 gap-1 text-center">
-                {scoreCols.map((col) => (
-                  <div key={col.key}>
-                    <div className={`relative inline-block px-2 ${col.cls}`}>
-                      <span className="font-hand text-[42px] font-bold leading-none">
-                        {scores[col.key]}
-                      </span>
-                      {leader === col.key && (
-                        <svg
-                          key={`ell-${scores[col.key]}`}
-                          viewBox="0 0 120 64"
-                          preserveAspectRatio="none"
-                          className="pointer-events-none absolute -inset-x-1.5 -inset-y-1 text-pen"
-                          fill="none"
-                          aria-hidden="true"
-                        >
-                          <path
-                            d="M62 8 C 34 6, 10 16, 9 31 C 8 47, 34 57, 64 56 C 94 55, 113 45, 111 30 C 109 15, 88 7, 58 9"
-                            stroke="currentColor"
-                            strokeWidth={3.5}
-                            strokeLinecap="round"
-                            opacity={0.75}
-                            className="sketch"
-                            style={sketchVar(310, 0)}
-                          />
-                        </svg>
-                      )}
-                    </div>
-                    <p className={`mt-0.5 text-[11px] font-semibold uppercase tracking-wider ${col.cls} opacity-80`}>
-                      {col.label}
-                    </p>
-                    <div className={`mt-1 flex h-4 justify-center ${col.cls} opacity-70`}>
-                      <Tally count={scores[col.key]} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-3 border-t border-dashed border-[#ccd7e8] pt-3 text-xs text-pencil">
-                Поле {size}×{size} · партия {round} · первым ходит {markName(starter)}
-              </p>
-            </div>
-
-            {/* настройки */}
-            <div
-              className="anim-fadeup relative order-2 rotate-1 rounded-lg border border-[#ccd7e8] bg-card/90 p-5 shadow-[5px_6px_0_rgba(90,110,160,0.12)] lg:order-1"
-              style={{ animationDelay: '0.24s' }}
-            >
-              <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-pencil">
-                Как играем
-              </h2>
-
-              <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.18em] text-pencil">
-                Поле
-              </p>
-              <div className="mt-1.5 flex gap-2">
-                {SIZES.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => switchSize(s.id)}
-                    aria-pressed={size === s.id}
-                    className={`min-w-[92px] cursor-pointer rounded-lg border-2 px-3 py-1.5 text-left transition-all duration-150 ${
-                      size === s.id
-                        ? '-rotate-1 border-graphite bg-white shadow-[3px_3px_0_rgba(70,84,116,0.22)]'
-                        : 'border-transparent text-pencil hover:bg-[#eef2fa]'
-                    }`}
-                  >
-                    <span
-                      className={`block font-hand text-[22px] font-bold leading-none ${
-                        size === s.id ? 'text-graphite' : ''
-                      }`}
-                    >
-                      {s.label}
-                    </span>
-                    <span className="mt-0.5 block text-[11px] leading-tight text-pencil">
-                      {s.note}
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => switchMode('duo')}
-                  aria-pressed={mode === 'duo'}
-                  className={`flex cursor-pointer flex-col items-center gap-1.5 rounded-lg border-2 px-2 py-3 transition-all duration-150 ${
-                    mode === 'duo'
-                      ? '-rotate-1 border-ink bg-white text-ink shadow-[3px_3px_0_rgba(43,75,216,0.18)]'
-                      : 'border-transparent text-pencil hover:bg-[#eef2fa]'
-                  }`}
-                >
-                  <IconUsers className="h-6 w-6" />
-                  <span className="font-hand text-xl font-semibold leading-none">Вдвоём</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => switchMode('cpu')}
-                  aria-pressed={mode === 'cpu'}
-                  className={`flex cursor-pointer flex-col items-center gap-1.5 rounded-lg border-2 px-2 py-3 transition-all duration-150 ${
-                    mode === 'cpu'
-                      ? 'rotate-1 border-pen bg-white text-pen shadow-[3px_3px_0_rgba(224,68,68,0.18)]'
-                      : 'border-transparent text-pencil hover:bg-[#eef2fa]'
-                  }`}
-                >
-                  <IconBot className="h-6 w-6" />
-                  <span className="font-hand text-xl font-semibold leading-none">С компьютером</span>
-                </button>
-              </div>
-
-              {mode === 'cpu' && (
-                <div className="anim-fadeup mt-4">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-pencil">
-                    Уровень
-                  </p>
-                  <div className="mt-1.5 flex items-end gap-4">
-                    {DIFFICULTIES.map((d) => (
-                      <button
-                        key={d.id}
-                        type="button"
-                        onClick={() => {
-                          if (d.id !== difficulty) {
-                            sfx.click();
-                            setDifficulty(d.id);
-                          }
-                        }}
-                        aria-pressed={difficulty === d.id}
-                        className={`relative cursor-pointer pb-1 font-hand text-[22px] font-semibold leading-none transition-colors ${
-                          difficulty === d.id ? 'text-pendeep' : 'text-pencil hover:text-graphite'
-                        }`}
-                      >
-                        {d.label}
-                        {difficulty === d.id && (
-                          <Scribble className="absolute -bottom-0.5 left-0 h-2 w-full text-pen" w={5} />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="mt-2 text-xs leading-snug text-pencil">
-                    {difficulty === 'easy' && 'Просто разминается — подыграет тебе.'}
-                    {difficulty === 'medium' && 'Иногда зевает, но умеет блокировать.'}
-                    {difficulty === 'hard' &&
-                      (size === 3
-                        ? 'Играет идеально. Лучшее, что ты получишь, — ничья.'
-                        : 'Просчитывает вилки и угрозы по всему полю.')}
-                  </p>
-                </div>
-              )}
-
-              <div className="mt-5 flex flex-col gap-2.5">
-                <button
-                  type="button"
-                  onClick={newRound}
-                  className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-ink bg-ink px-4 py-2.5 text-sm font-bold text-[#f2f5ff] shadow-[3px_4px_0_rgba(43,75,216,0.3)] transition-all duration-150 hover:-translate-y-0.5 hover:bg-inkdeep active:translate-y-0.5 active:shadow-none"
-                >
-                  <IconRestart className="h-4.5 w-4.5" />
-                  Новая партия
-                </button>
-                <button
-                  type="button"
-                  onClick={resetMatch}
-                  className="cursor-pointer self-center rounded px-2 py-1 text-xs font-semibold text-pencil underline decoration-dotted decoration-2 underline-offset-4 transition-colors hover:text-pen"
-                >
-                  сбросить счёт матча
-                </button>
-              </div>
-            </div>
-          </aside>
-        </div>
-
-        {/* ---------- подвал ---------- */}
-        <footer
-          className="anim-fadeup mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-dashed border-[#c6d2e6] pb-6 pt-4 text-xs text-pencil"
-          style={{ animationDelay: '0.3s' }}
-        >
-          <span className="hidden items-center gap-1.5 sm:inline-flex">
-            <IconPencil className="h-4 w-4" />
-            {size === 3
-              ? 'клавиши 1–9 — ход · R — новая партия'
-              : 'жми на клетки мышкой · R — новая партия'}
-          </span>
-          <span className="sm:hidden">Жми на клетки — и поехали!</span>
-          <span className="inline-flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={handleDownloadZip}
-              disabled={zipStatus === 'working'}
-              title="Собрать игру в ZIP — его можно загрузить на хостинг ВКонтакте вручную"
-              className={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg border-2 border-dashed px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] transition-all duration-150 ${
-                zipStatus === 'working'
-                  ? 'cursor-wait border-graphite/40 text-graphite/60'
-                  : zipStatus === 'done'
-                    ? 'border-pen/60 text-pen'
-                    : zipStatus === 'error'
-                      ? 'border-pen text-pen'
-                      : 'border-ink/50 text-ink hover:-translate-y-0.5 hover:border-ink hover:bg-[#e9f0fb] active:translate-y-0'
-              }`}
-            >
-              <IconDownload className="h-4 w-4" />
-              {zipStatus === 'working'
-                ? 'Собираю…'
-                : zipStatus === 'done'
-                  ? 'Скачано!'
-                  : zipStatus === 'error'
-                    ? 'Не вышло — ещё раз'
-                    : 'Скачать ZIP'}
-            </button>
-            <VkBadge />
-          </span>
-        </footer>
+      <main className="relative z-10 h-full pl-12 pr-3 sm:pl-[104px] sm:pr-8">
+        {screen === 'menu' ? (
+          <MenuScreen
+            size={size}
+            mode={mode}
+            difficulty={difficulty}
+            vkName={vkName}
+            muted={muted}
+            zipStatus={zipStatus}
+            onSize={handleSize}
+            onMode={handleMode}
+            onDifficulty={(d) => {
+              if (d !== difficulty) {
+                sfx.click();
+                setDifficulty(d);
+              }
+            }}
+            onToggleSound={toggleSound}
+            onPlay={play}
+            onDownloadZip={handleDownloadZip}
+          />
+        ) : (
+          gameScreen
+        )}
       </main>
     </div>
   );
@@ -620,16 +425,16 @@ export default function App() {
 /* ---------- каракули, парящие на полях листа ---------- */
 function BgDoodles() {
   const items: { kind: DoodleKind; cls: string; dur: number; delay: number }[] = [
-    { kind: 'star', cls: 'right-[5%] top-24 h-14 w-14 text-[#c3d2ea]', dur: 7, delay: 0 },
-    { kind: 'spiral', cls: 'left-[8%] top-[46%] h-20 w-20 text-[#f0c6c6]', dur: 8.5, delay: 0.8 },
-    { kind: 'zig', cls: 'bottom-28 left-[14%] h-9 w-24 text-[#c3d2ea]', dur: 6.4, delay: 1.6 },
-    { kind: 'plane', cls: 'left-[36%] top-9 h-11 w-11 text-[#dccb9f]', dur: 9, delay: 0.4 },
-    { kind: 'ring', cls: 'right-[10%] bottom-36 h-16 w-16 text-[#f0c6c6]', dur: 7.8, delay: 2.2 },
-    { kind: 'cross', cls: 'right-[28%] top-[30%] h-8 w-8 text-[#c3d2ea]', dur: 6.8, delay: 1.1 },
-    { kind: 'star', cls: 'left-[30%] bottom-14 h-7 w-7 text-[#dccb9f]', dur: 8.2, delay: 2.8 },
+    { kind: 'star', cls: 'right-[5%] top-[12%] h-14 w-14 text-[#c3d2ea]', dur: 7, delay: 0 },
+    { kind: 'spiral', cls: 'left-[7%] top-[46%] h-20 w-20 text-[#f0c6c6]', dur: 8.5, delay: 0.8 },
+    { kind: 'zig', cls: 'bottom-[12%] left-[14%] h-9 w-24 text-[#c3d2ea]', dur: 6.4, delay: 1.6 },
+    { kind: 'plane', cls: 'left-[36%] top-[7%] h-11 w-11 text-[#dccb9f]', dur: 9, delay: 0.4 },
+    { kind: 'ring', cls: 'right-[9%] bottom-[16%] h-16 w-16 text-[#f0c6c6]', dur: 7.8, delay: 2.2 },
+    { kind: 'cross', cls: 'right-[26%] top-[26%] h-8 w-8 text-[#c3d2ea]', dur: 6.8, delay: 1.1 },
+    { kind: 'star', cls: 'left-[30%] bottom-[8%] h-7 w-7 text-[#dccb9f]', dur: 8.2, delay: 2.8 },
   ];
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 z-0 opacity-70">
+    <div aria-hidden className="pointer-events-none absolute inset-0 z-0 opacity-70">
       {items.map((it, i) => (
         <div
           key={i}
