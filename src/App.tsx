@@ -22,8 +22,6 @@ import {
 } from './components/decor';
 import { MenuScreen } from './components/MenuScreen';
 import type { Mode } from './components/MenuScreen';
-import { downloadBuildZip } from './lib/downloadZip';
-import type { ZipStatus } from './lib/downloadZip';
 
 type Phase = 'playing' | 'won' | 'draw';
 type Screen = 'menu' | 'game';
@@ -44,7 +42,6 @@ export default function App() {
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [vkName, setVkName] = useState<string | null>(null);
   const [muted, setMuted] = useState(sfx.isMuted());
-  const [zipStatus, setZipStatus] = useState<ZipStatus>('idle');
 
   const current = useMemo(() => turnOf(board, starter), [board, starter]);
   const ended = phase !== 'playing';
@@ -58,12 +55,6 @@ export default function App() {
       .then((u) => setVkName(u.first_name))
       .catch(() => undefined);
   }, []);
-
-  useEffect(() => {
-    if (zipStatus === 'idle') return;
-    const t = window.setTimeout(() => setZipStatus('idle'), 3200);
-    return () => window.clearTimeout(t);
-  }, [zipStatus]);
 
   const clearBoard = (sz: BoardSize) => {
     setBoard(makeEmptyBoard(sz));
@@ -176,17 +167,6 @@ export default function App() {
     setMuted(next);
     sfx.setMuted(next);
     if (!next) sfx.click();
-  };
-
-  const handleDownloadZip = async () => {
-    sfx.click();
-    setZipStatus('working');
-    try {
-      await downloadBuildZip();
-      setZipStatus('done');
-    } catch {
-      setZipStatus('error');
-    }
   };
 
   /* --- клавиатура --- */
@@ -400,8 +380,6 @@ export default function App() {
             mode={mode}
             difficulty={difficulty}
             vkName={vkName}
-            muted={muted}
-            zipStatus={zipStatus}
             onSize={handleSize}
             onMode={handleMode}
             onDifficulty={(d) => {
@@ -410,9 +388,7 @@ export default function App() {
                 setDifficulty(d);
               }
             }}
-            onToggleSound={toggleSound}
             onPlay={play}
-            onDownloadZip={handleDownloadZip}
           />
         ) : (
           gameScreen
