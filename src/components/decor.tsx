@@ -5,27 +5,33 @@ export function sketchVar(len: number, delay = 0): CSSProperties {
   return { '--len': len, animationDelay: `${delay}s` } as CSSProperties;
 }
 
+/* ---------- штрихи отметок (общие для иконок и единого игрового поля) ---------- */
+export const X_STROKES: { d: string; w: number; len: number }[] = [
+  { d: 'M21 19 C 36 37, 58 61, 81 82', w: 9, len: 90 },
+  { d: 'M80 21 C 62 39, 40 61, 19 79', w: 8, len: 90 },
+];
+
+export const O_STROKE: { d: string; w: number; len: number } = {
+  d: 'M62 16 C 42 8, 18 22, 14 44 C 10 68, 26 88, 50 89 C 74 90, 91 72, 89 49 C 87 28, 73 15, 55 15',
+  w: 8.5,
+  len: 240,
+};
+
 /* ---------- крестик, нарисованный ручкой ---------- */
 export function InkX({ className = '', still = false }: { className?: string; still?: boolean }) {
-  const cls = still ? undefined : 'sketch';
   return (
     <svg viewBox="0 0 100 100" className={className} fill="none" aria-hidden="true">
-      <path
-        d="M21 19 C 36 37, 58 61, 81 82"
-        stroke="currentColor"
-        strokeWidth={9}
-        strokeLinecap="round"
-        className={cls}
-        style={still ? undefined : sketchVar(90, 0)}
-      />
-      <path
-        d="M80 21 C 62 39, 40 61, 19 79"
-        stroke="currentColor"
-        strokeWidth={8}
-        strokeLinecap="round"
-        className={cls}
-        style={still ? undefined : sketchVar(90, 0.13)}
-      />
+      {X_STROKES.map((s, i) => (
+        <path
+          key={i}
+          d={s.d}
+          stroke="currentColor"
+          strokeWidth={s.w}
+          strokeLinecap="round"
+          className={still ? undefined : 'sketch'}
+          style={still ? undefined : sketchVar(s.len, i * 0.13)}
+        />
+      ))}
     </svg>
   );
 }
@@ -35,31 +41,31 @@ export function InkO({ className = '', still = false }: { className?: string; st
   return (
     <svg viewBox="0 0 100 100" className={className} fill="none" aria-hidden="true">
       <path
-        d="M62 16 C 42 8, 18 22, 14 44 C 10 68, 26 88, 50 89 C 74 90, 91 72, 89 49 C 87 28, 73 15, 55 15"
+        d={O_STROKE.d}
         stroke="currentColor"
-        strokeWidth={8.5}
+        strokeWidth={O_STROKE.w}
         strokeLinecap="round"
         className={still ? undefined : 'sketch'}
-        style={still ? undefined : sketchVar(240, 0)}
+        style={still ? undefined : sketchVar(O_STROKE.len, 0)}
       />
     </svg>
   );
 }
 
-/* ---------- рукописная сетка поля ---------- */
-/* preserveAspectRatio="none": линии всегда тянутся ровно по клеткам,
-   даже если контейнер на долю пикселя не квадратный */
+/* ---------- рукописные линии сетки (в системе координат 0..300) ---------- */
+export function gridPaths(size: number): string[] {
+  const arr: string[] = [];
+  const step = 300 / size;
+  for (let i = 1; i < size; i++) {
+    const p = i * step;
+    arr.push(`M ${p} -6 C ${p - 3} 90, ${p + 3} 210, ${p} 306`);
+    arr.push(`M -6 ${p} C 90 ${p - 3}, 210 ${p + 3}, 306 ${p}`);
+  }
+  return arr;
+}
+
 export function GridLines({ size, className = '' }: { size: number; className?: string }) {
-  const paths = useMemo(() => {
-    const arr: string[] = [];
-    const step = 300 / size;
-    for (let i = 1; i < size; i++) {
-      const p = i * step;
-      arr.push(`M ${p} -6 C ${p - 3} 90, ${p + 3} 210, ${p} 306`);
-      arr.push(`M -6 ${p} C 90 ${p - 3}, 210 ${p + 3}, 306 ${p}`);
-    }
-    return arr;
-  }, [size]);
+  const paths = useMemo(() => gridPaths(size), [size]);
   return (
     <svg
       viewBox="0 0 300 300"
@@ -80,56 +86,6 @@ export function GridLines({ size, className = '' }: { size: number; className?: 
           style={sketchVar(340, i * 0.05)}
         />
       ))}
-    </svg>
-  );
-}
-
-/* ---------- зачёркивающая линия победной комбинации ---------- */
-export function StrikeLine({
-  line,
-  size,
-  className = '',
-}: {
-  line: number[];
-  size: number;
-  className?: string;
-}) {
-  const cell = 100 / size;
-  const center = (i: number): [number, number] => [
-    ((i % size) + 0.5) * cell,
-    (Math.floor(i / size) + 0.5) * cell,
-  ];
-  const [x1, y1] = center(line[0]);
-  const [x2, y2] = center(line[line.length - 1]);
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const L = Math.hypot(dx, dy) || 1;
-  const ux = dx / L;
-  const uy = dy / L;
-  const ax = x1 - ux * cell * 0.34;
-  const ay = y1 - uy * cell * 0.34;
-  const bx = x2 + ux * cell * 0.34;
-  const by = y2 + uy * cell * 0.34;
-  const mx = (ax + bx) / 2 - uy * cell * 0.16;
-  const my = (ay + by) / 2 + ux * cell * 0.16;
-  const len = Math.hypot(bx - ax, by - ay) + 8;
-  return (
-    <svg
-      viewBox="0 0 100 100"
-      preserveAspectRatio="none"
-      className={className}
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d={`M ${ax} ${ay} Q ${mx} ${my} ${bx} ${by}`}
-        stroke="currentColor"
-        strokeWidth={cell * 0.1}
-        strokeLinecap="round"
-        opacity={0.7}
-        className="sketch"
-        style={sketchVar(len, 0.12)}
-      />
     </svg>
   );
 }
