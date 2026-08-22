@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import vkBridge from '@vkontakte/vk-bridge';
 import type { BoardSize, BoardState, Difficulty, Player } from './game/logic';
@@ -27,39 +27,6 @@ type Screen = 'menu' | 'game';
 
 const MARGIN_STYLE: CSSProperties = { background: 'rgba(238, 158, 158, 0.75)' };
 
-/* ---------- квадрат, вписанный в реально доступное место ----------
-   Измеряет контейнер через ResizeObserver: поле всегда остаётся
-   идеальным квадратом, поэтому SVG-сетка и клетки всегда совпадают —
-   и на ПК, и на телефоне, при любой высоте шапки ВК. */
-function useFitSquare<T extends HTMLElement>(active: boolean) {
-  const ref = useRef<T | null>(null);
-  const [side, setSide] = useState(0);
-  useEffect(() => {
-    /* измерять имеет смысл, только когда игровой экран реально в DOM */
-    if (!active) return;
-    const el = ref.current;
-    if (!el) return;
-    const update = () => {
-      const r = el.getBoundingClientRect();
-      setSide(Math.max(0, Math.floor(Math.min(r.width, r.height))));
-    };
-    update();
-    if (typeof ResizeObserver !== 'undefined') {
-      const ro = new ResizeObserver(update);
-      ro.observe(el);
-      return () => ro.disconnect();
-    }
-    /* фолбэк для очень старых вебвью */
-    window.addEventListener('resize', update);
-    window.addEventListener('orientationchange', update);
-    return () => {
-      window.removeEventListener('resize', update);
-      window.removeEventListener('orientationchange', update);
-    };
-  }, [active]);
-  return { ref, side };
-}
-
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu');
   const [size, setSize] = useState<BoardSize>(3);
@@ -74,8 +41,6 @@ export default function App() {
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [vkName, setVkName] = useState<string | null>(null);
   const [muted, setMuted] = useState(sfx.isMuted());
-
-  const { ref: fitRef, side } = useFitSquare<HTMLDivElement>(screen === 'game');
 
   const current = useMemo(() => turnOf(board, starter), [board, starter]);
   const ended = phase !== 'playing';
@@ -304,16 +269,9 @@ export default function App() {
         )}
       </div>
 
-      {/* поле: измеряемый квадрат — всегда влезает без прокрутки */}
-      <div ref={fitRef} className="flex min-h-0 flex-1 items-center justify-center">
-        <div
-          className="relative"
-          style={
-            side > 0
-              ? { width: side, height: side }
-              : { width: 'min(100%, 72dvh)', aspectRatio: '1 / 1' }
-          }
-        >
+      {/* поле: гарантированный квадрат на чистом CSS — всегда видно, всегда влезает */}
+      <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
+        <div className="board-square relative">
           <BoardView
             board={board}
             size={size}
