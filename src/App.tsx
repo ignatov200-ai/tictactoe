@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
-import vkBridge from '@vkontakte/vk-bridge';
-import type { BoardSize, BoardState, Difficulty, Player } from './game/logic';
+import type { BoardSize, BoardState, Difficulty, Mode, Player } from './game/logic';
 import { getAiMove, getWinner, isFull, makeEmptyBoard, other, turnOf } from './game/logic';
 import { sfx } from './game/sound';
+import { fetchVkName, initVk } from './game/vk';
 import { BoardView } from './components/Board';
 import type { DoodleKind } from './components/decor';
 import {
@@ -20,7 +20,6 @@ import {
   Scribble,
 } from './components/decor';
 import { MenuScreen } from './components/MenuScreen';
-import type { Mode } from './components/MenuScreen';
 
 type Phase = 'playing' | 'won' | 'draw';
 type Screen = 'menu' | 'game';
@@ -46,17 +45,12 @@ export default function App() {
   const ended = phase !== 'playing';
   const cpuThinking = mode === 'cpu' && phase === 'playing' && current === 'o';
 
-  /* --- знакомство с ВКонтакте (никогда не должно ронять игру) --- */
+  /* --- знакомство с ВКонтакте (никогда не роняет игру) --- */
   useEffect(() => {
-    try {
-      vkBridge.send('VKWebAppInit').catch(() => undefined);
-      vkBridge
-        .send('VKWebAppGetUserInfo')
-        .then((u) => setVkName(u.first_name))
-        .catch(() => undefined);
-    } catch {
-      /* вне ВК или без сети — просто играем без имени */
-    }
+    initVk();
+    fetchVkName()
+      .then((name) => setVkName(name))
+      .catch(() => undefined);
   }, []);
 
   const clearBoard = (sz: BoardSize) => {
@@ -204,9 +198,7 @@ export default function App() {
             <span className="font-hand text-lg leading-none text-pencil">:</span>
             <span className="font-hand text-xl font-bold leading-none text-pen">{scores.o}</span>
             <InkO still className="h-3.5 w-3.5 text-pen" />
-            <span className="ml-1 hidden text-[11px] text-pencil sm:inline">
-              · ничьи {scores.d}
-            </span>
+            <span className="ml-1 hidden text-[11px] text-pencil sm:inline">· ничьи {scores.d}</span>
             <span className="text-[11px] text-pencil">· №{round}</span>
           </div>
         </div>
@@ -229,9 +221,7 @@ export default function App() {
       <div className="flex shrink-0 items-center justify-center px-2 py-1 text-center">
         {phase === 'won' && winner ? (
           <div key={`won-${round}`} className="anim-pop">
-            <p
-              className={`inline-block -rotate-1 font-hand text-3xl font-bold leading-tight sm:text-4xl ${markColor(winner)}`}
-            >
+            <p className={`inline-block -rotate-1 font-hand text-3xl font-bold leading-tight sm:text-4xl ${markColor(winner)}`}>
               {mode === 'cpu'
                 ? winner === 'x'
                   ? 'Твоя победа!'
@@ -244,9 +234,7 @@ export default function App() {
           </div>
         ) : phase === 'draw' ? (
           <div key={`draw-${round}`} className="anim-pop">
-            <p className="inline-block rotate-1 font-hand text-3xl font-bold leading-tight text-graphite sm:text-4xl">
-              Ничья!
-            </p>
+            <p className="inline-block rotate-1 font-hand text-3xl font-bold leading-tight text-graphite sm:text-4xl">Ничья!</p>
             <Scribble className="-mt-0.5 h-2.5 w-28 text-pencil" />
           </div>
         ) : cpuThinking ? (
@@ -269,7 +257,7 @@ export default function App() {
         )}
       </div>
 
-      {/* поле: гарантированный квадрат на чистом CSS — всегда видно, всегда влезает */}
+      {/* поле: гарантированный квадрат, всегда влезает без прокрутки */}
       <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
         <div className="board-square relative">
           <BoardView
@@ -348,17 +336,12 @@ export default function App() {
         aria-hidden
         className="pointer-events-none absolute inset-0 z-0"
         style={{
-          background:
-            'radial-gradient(130% 100% at 50% 6%, transparent 55%, rgba(93,105,140,0.10) 100%)',
+          background: 'radial-gradient(130% 100% at 50% 6%, transparent 55%, rgba(93,105,140,0.10) 100%)',
         }}
       />
       <BgDoodles />
 
-      <main
-        className={`relative z-10 h-full ${
-          screen === 'menu' ? 'px-4 sm:px-[104px]' : 'pl-12 pr-3 sm:pl-[104px] sm:pr-8'
-        }`}
-      >
+      <main className={`relative z-10 h-full ${screen === 'menu' ? 'px-4 sm:px-[104px]' : 'pl-12 pr-3 sm:pl-[104px] sm:pr-8'}`}>
         {screen === 'menu' ? (
           <MenuScreen
             size={size}
@@ -397,11 +380,7 @@ function BgDoodles() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 z-0 opacity-70">
       {items.map((it, i) => (
-        <div
-          key={i}
-          className={`anim-floaty absolute ${it.cls}`}
-          style={{ animationDuration: `${it.dur}s`, animationDelay: `${it.delay}s` }}
-        >
+        <div key={i} className={`anim-floaty absolute ${it.cls}`} style={{ animationDuration: `${it.dur}s`, animationDelay: `${it.delay}s` }}>
           <Doodle kind={it.kind} className="h-full w-full" />
         </div>
       ))}

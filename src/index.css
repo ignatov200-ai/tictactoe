@@ -12,7 +12,6 @@
   --color-pencil: #8b95a8;
   --color-paper: #fafaf5;
   --color-card: #fffef9;
-  --color-gridline: #dde8f6;
   --color-hl: #ffe28a;
 }
 
@@ -49,7 +48,7 @@ button {
   background-size: 26px 26px;
 }
 
-/* на очень низких экранах (<540px) меню всё же можно прокрутить — страховка */
+/* на очень низких экранах меню можно прокрутить — страховка */
 @media (max-height: 540px) {
   .menu-scroll {
     overflow-y: auto;
@@ -57,12 +56,9 @@ button {
 }
 
 /* ---- игровое поле: гарантированный квадрат ----
-   Размер ведётся ОТ ВЫСОТЫ — на телефоне она всегда известна точно:
-   высота = min(высота контейнера, экран минус шапка/статус/кнопки),
-   а ширина достраивается через aspect-ratio. Такой расчёт в принципе
-   не может дать не-квадрат, поэтому нарисованная сетка и клетки
-   с отметками никогда не разъезжаются. Если колонка уже, чем
-   полученная высота, max-width мягко уменьшит квадрат. */
+   Размер ведётся от высоты (на телефоне она всегда известна точно),
+   ширина достраивается через aspect-ratio. Слой с SVG и слой с кнопками
+   лежат в одном контейнере, поэтому никогда не разъезжаются. */
 .board-square {
   display: flex;
   align-items: center;
@@ -74,7 +70,7 @@ button {
 
 /* ---- «дорисовка» штриха, как ручкой ----
    Базовое состояние — видимая линия (dashoffset: 0). Анимация лишь
-   «дорисовывает» её от невидимой. Если анимация не запустится или будет
+   «дорисовывает» её от невидимой: если анимация не запустится или будет
    отключена, линия всё равно останется видимой — поле никогда не пропадёт. */
 @keyframes sketch {
   from {
@@ -122,7 +118,6 @@ button {
   animation: fadeup 0.55s ease-out both;
 }
 
-/* появление экрана (меню ↔ игра) */
 @keyframes screenin {
   from {
     opacity: 0;
@@ -162,22 +157,26 @@ button {
   animation: wiggle 1.5s ease-in-out infinite;
 }
 
+/* разлёт каракулей при победе */
 @keyframes burst {
   0% {
-    transform: translate(-50%, -50%) scale(0.3);
     opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3);
   }
   14% {
     opacity: 1;
   }
   100% {
-    transform: calc(-50% + var(--tx, 0px)) translateY(calc(-50% + var(--ty, 0px)))
+    transform: translate(calc(-50% + var(--tx, 0px)), calc(-50% + var(--ty, 0px)))
       rotate(var(--rot, 0deg)) scale(1);
     opacity: 0;
   }
 }
+.anim-burst {
+  animation: burst 0.9s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
 
-/* точки «думает…» */
+/* точки «думает» */
 .dots i {
   display: inline-block;
   width: 6px;
@@ -196,22 +195,18 @@ button {
 @keyframes dotblink {
   0%,
   100% {
-    transform: translateY(0);
     opacity: 0.3;
+    transform: translateY(0);
   }
   50% {
-    transform: translateY(-5px);
     opacity: 1;
+    transform: translateY(-5px);
   }
 }
 
 /* кусочек скотча */
 .tape {
-  background: linear-gradient(
-    100deg,
-    rgba(246, 231, 168, 0.9),
-    rgba(240, 220, 138, 0.85)
-  );
+  background: linear-gradient(100deg, rgba(246, 231, 168, 0.9), rgba(240, 220, 138, 0.85));
   box-shadow: 0 1px 4px rgba(90, 80, 30, 0.18);
 }
 

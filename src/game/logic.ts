@@ -3,6 +3,7 @@ export type Cell = Player | null;
 export type BoardSize = 3 | 5;
 export type BoardState = Cell[];
 export type Difficulty = 'easy' | 'medium' | 'hard';
+export type Mode = 'duo' | 'cpu';
 
 export interface WinResult {
   player: Player;
@@ -29,26 +30,18 @@ export function winningLines(size: BoardSize): number[][] {
   const need = winLength(size);
   const lines: number[][] = [];
   const at = (r: number, c: number) => r * size + c;
-  for (let r = 0; r < size; r++) {
-    for (let c = 0; c + need <= size; c++) {
+  for (let r = 0; r < size; r++)
+    for (let c = 0; c + need <= size; c++)
       lines.push(Array.from({ length: need }, (_, k) => at(r, c + k)));
-    }
-  }
-  for (let c = 0; c < size; c++) {
-    for (let r = 0; r + need <= size; r++) {
+  for (let c = 0; c < size; c++)
+    for (let r = 0; r + need <= size; r++)
       lines.push(Array.from({ length: need }, (_, k) => at(r + k, c)));
-    }
-  }
-  for (let r = 0; r + need <= size; r++) {
-    for (let c = 0; c + need <= size; c++) {
+  for (let r = 0; r + need <= size; r++)
+    for (let c = 0; c + need <= size; c++)
       lines.push(Array.from({ length: need }, (_, k) => at(r + k, c + k)));
-    }
-  }
-  for (let r = 0; r + need <= size; r++) {
-    for (let c = need - 1; c < size; c++) {
+  for (let r = 0; r + need <= size; r++)
+    for (let c = need - 1; c < size; c++)
       lines.push(Array.from({ length: need }, (_, k) => at(r + k, c - k)));
-    }
-  }
   return lines;
 }
 

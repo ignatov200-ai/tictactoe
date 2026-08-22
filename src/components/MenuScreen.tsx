@@ -1,9 +1,7 @@
 import type { CSSProperties } from 'react';
-import type { BoardSize, Difficulty } from '../game/logic';
+import type { BoardSize, Difficulty, Mode } from '../game/logic';
 import { sfx } from '../game/sound';
 import { GridLines, IconBot, IconPlay, IconUsers, InkO, InkX, MiniGrid, Scribble } from './decor';
-
-export type Mode = 'duo' | 'cpu';
 
 export const SIZES: { id: BoardSize; label: string; note: string }[] = [
   { id: 3, label: '3×3', note: '3 в ряд' },
@@ -34,13 +32,11 @@ function LetterRow({ word, tone }: { word: string; tone: 'ink' | 'pen' }) {
       {word.split('').map((ch, i) => (
         <span
           key={i}
-          className={`grid h-8 w-8 cursor-default place-items-center rounded-[5px] border-2 bg-card/80 shadow-[1.5px_2px_0_rgba(90,110,160,0.13)] transition-transform duration-150 hover:-translate-y-0.5 hover:rotate-3 sm:h-10 sm:w-10 lg:h-11 lg:w-11 ${
+          className={`grid h-7 w-7 cursor-default place-items-center rounded-[5px] border-2 bg-card/80 shadow-[1.5px_2px_0_rgba(90,110,160,0.13)] transition-transform duration-150 hover:-translate-y-0.5 hover:rotate-3 sm:h-9 sm:w-9 ${
             tone === 'ink' ? 'border-[#b9c8e6] text-ink' : 'border-[#eebcbc] text-pen'
           }`}
         >
-          <span className="font-hand text-[21px] font-bold leading-none sm:text-[27px] lg:text-[30px]">
-            {ch}
-          </span>
+          <span className="font-hand text-[19px] font-bold leading-none sm:text-[24px]">{ch}</span>
         </span>
       ))}
     </span>
@@ -60,16 +56,7 @@ function MiniSheet({ className = '', style }: { className?: string; style?: CSSP
 }
 
 /* ---------- стартовый экран: обложка тетради ---------- */
-export function MenuScreen({
-  size,
-  mode,
-  difficulty,
-  vkName,
-  onSize,
-  onMode,
-  onDifficulty,
-  onPlay,
-}: MenuProps) {
+export function MenuScreen({ size, mode, difficulty, vkName, onSize, onMode, onDifficulty, onPlay }: MenuProps) {
   const sizeNote = size === 3 ? 'победа — 3 в ряд' : 'победа — 4 в ряд';
 
   return (
@@ -81,7 +68,7 @@ export function MenuScreen({
           <div aria-hidden className="tape absolute -right-4 -top-2 h-4 w-11 rotate-6 rounded-[2px]" />
           <div className="-rotate-1">
             <LetterRow word="КРЕСТИКИ" tone="ink" />
-            <div className="ml-7 mt-1.5 sm:ml-10">
+            <div className="ml-6 mt-1 sm:ml-9">
               <LetterRow word="НОЛИКИ" tone="pen" />
             </div>
           </div>
@@ -89,97 +76,85 @@ export function MenuScreen({
 
         {vkName && (
           <div
-            className="anim-fadeup mt-2 inline-block rotate-1 rounded-sm bg-[#fdf3b1] px-2.5 py-0.5 font-hand text-lg font-semibold text-[#7a6a1f] shadow-[2px_3px_0_rgba(120,100,20,0.15)] md:ml-6"
-            style={{ animationDelay: '0.1s' }}
+            className="anim-fadeup mt-2 inline-block rotate-1 rounded-sm bg-[#fdf3b1] px-2.5 py-0.5 font-hand text-lg font-semibold text-[#7a6a1f] shadow-[2px_3px_0_rgba(120,100,20,0.15)]"
+            style={{ animationDelay: '0.14s' }}
           >
             Привет, {vkName}!
           </div>
         )}
 
         <MiniSheet
-          className="anim-floaty absolute -top-2 right-[4%] hidden h-24 w-24 rotate-12 text-[#aebfdd] lg:block"
+          className="anim-floaty absolute -top-6 right-[-70px] hidden h-20 w-20 rotate-12 text-[#aebfdd] lg:block"
           style={{ animationDuration: '8s' }}
         />
       </header>
 
-      {/* настройки партии — по центру экрана */}
+      {/* настройки — по центру оставшегося места */}
       <div className="flex min-h-0 flex-1 items-center justify-center">
-        <div className="anim-fadeup relative w-full max-w-md" style={{ animationDelay: '0.12s' }}>
+        <div
+          className="anim-fadeup relative w-full max-w-md"
+          style={{ animationDelay: '0.12s' }}
+        >
           <div aria-hidden className="tape absolute -top-3 left-1/2 z-10 h-5 w-24 -translate-x-1/2 rotate-2 rounded-[2px]" />
           <div className="rounded-xl border border-[#ccd7e8] bg-card/95 p-4 shadow-[6px_7px_0_rgba(90,110,160,0.13)] sm:p-5">
             <h2 className="text-center text-[11px] font-bold uppercase tracking-[0.22em] text-pencil">
               Настройки партии
             </h2>
 
+            {/* поле */}
             <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.16em] text-pencil">Поле</p>
             <div className="mt-1.5 grid grid-cols-2 gap-2">
               {SIZES.map((s) => (
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() => {
-                    if (s.id !== size) {
-                      sfx.click();
-                      onSize(s.id);
-                    }
-                  }}
+                  onClick={() => onSize(s.id)}
                   aria-pressed={size === s.id}
-                  className={`flex cursor-pointer items-center gap-2.5 rounded-xl border-2 p-2.5 text-left transition-all duration-150 sm:gap-3 sm:p-3 ${
+                  className={`flex cursor-pointer items-center gap-2.5 rounded-xl border-2 p-2.5 text-left transition-all duration-150 ${
                     size === s.id
-                      ? '-rotate-1 border-ink bg-white text-ink shadow-[3px_4px_0_rgba(43,75,216,0.18)]'
+                      ? `${s.id === 3 ? '-rotate-1 border-ink text-ink' : 'rotate-1 border-pen text-pen'} bg-white shadow-[3px_4px_0_rgba(90,110,160,0.16)]`
                       : 'border-[#dbe3f0] bg-white/70 text-graphite hover:border-ink/40 hover:bg-white'
                   }`}
                 >
-                  <MiniGrid n={s.id} className="h-9 w-9 shrink-0 sm:h-10 sm:w-10" />
+                  <MiniGrid n={s.id} className="h-9 w-9 shrink-0" />
                   <span>
-                    <span className="block font-hand text-xl font-bold leading-none sm:text-2xl">
-                      {s.label}
-                    </span>
+                    <span className="block font-hand text-xl font-bold leading-none sm:text-2xl">{s.label}</span>
                     <span className="mt-0.5 block text-[11px] leading-tight text-pencil">{s.note}</span>
                   </span>
                 </button>
               ))}
             </div>
 
+            {/* соперник */}
             <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.16em] text-pencil">Соперник</p>
             <div className="mt-1.5 grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  if (mode !== 'cpu') {
-                    sfx.click();
-                    onMode('cpu');
-                  }
-                }}
+                onClick={() => onMode('cpu')}
                 aria-pressed={mode === 'cpu'}
-                className={`flex cursor-pointer items-center gap-2.5 rounded-xl border-2 p-2.5 text-left transition-all duration-150 sm:gap-3 sm:p-3 ${
+                className={`flex cursor-pointer items-center gap-2.5 rounded-xl border-2 p-2.5 text-left transition-all duration-150 ${
                   mode === 'cpu'
                     ? '-rotate-1 border-pen bg-white text-pen shadow-[3px_4px_0_rgba(224,68,68,0.18)]'
                     : 'border-[#dbe3f0] bg-white/70 text-graphite hover:border-pen/40 hover:bg-white'
                 }`}
               >
-                <IconBot className="h-7 w-7 shrink-0 sm:h-8 sm:w-8" />
+                <IconBot className="h-7 w-7 shrink-0" />
                 <span>
                   <span className="block font-hand text-xl font-bold leading-none sm:text-2xl">Компьютер</span>
-                  <span className="mt-0.5 block text-[11px] leading-tight text-pencil">ты — крестики</span>
+                  <span className="mt-0.5 block text-[11px] leading-tight text-pencil">три уровня</span>
                 </span>
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  if (mode !== 'duo') {
-                    sfx.click();
-                    onMode('duo');
-                  }
-                }}
+                onClick={() => onMode('duo')}
                 aria-pressed={mode === 'duo'}
-                className={`flex cursor-pointer items-center gap-2.5 rounded-xl border-2 p-2.5 text-left transition-all duration-150 sm:gap-3 sm:p-3 ${
+                className={`flex cursor-pointer items-center gap-2.5 rounded-xl border-2 p-2.5 text-left transition-all duration-150 ${
                   mode === 'duo'
                     ? 'rotate-1 border-ink bg-white text-ink shadow-[3px_4px_0_rgba(43,75,216,0.18)]'
                     : 'border-[#dbe3f0] bg-white/70 text-graphite hover:border-ink/40 hover:bg-white'
                 }`}
               >
-                <IconUsers className="h-7 w-7 shrink-0 sm:h-8 sm:w-8" />
+                <IconUsers className="h-7 w-7 shrink-0" />
                 <span>
                   <span className="block font-hand text-xl font-bold leading-none sm:text-2xl">Друг</span>
                   <span className="mt-0.5 block text-[11px] leading-tight text-pencil">рядом, по очереди</span>
@@ -187,6 +162,7 @@ export function MenuScreen({
               </button>
             </div>
 
+            {/* уровень (только против компьютера) */}
             {mode === 'cpu' && (
               <div className="anim-fadeup mt-3">
                 <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-pencil">Уровень</p>
@@ -213,17 +189,10 @@ export function MenuScreen({
                     </button>
                   ))}
                 </div>
-                <p className="mt-1.5 text-xs leading-snug text-pencil">
-                  {difficulty === 'easy' && 'Просто разминается — подыграет тебе.'}
-                  {difficulty === 'medium' && 'Иногда зевает, но умеет блокировать.'}
-                  {difficulty === 'hard' &&
-                    (size === 3
-                      ? 'Играет идеально. Лучшее, что ты получишь, — ничья.'
-                      : 'Держит весь центр и не прощает ошибок.')}
-                </p>
               </div>
             )}
 
+            {/* играть */}
             <button
               type="button"
               onClick={onPlay}
