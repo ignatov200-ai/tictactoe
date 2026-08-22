@@ -42,9 +42,18 @@ function useFitSquare<T extends HTMLElement>() {
       setSide(Math.max(0, Math.floor(Math.min(r.width, r.height))));
     };
     update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(update);
+      ro.observe(el);
+      return () => ro.disconnect();
+    }
+    /* фолбэк для очень старых вебвью */
+    window.addEventListener('resize', update);
+    window.addEventListener('orientationchange', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('orientationchange', update);
+    };
   }, []);
   return { ref, side };
 }
@@ -70,13 +79,17 @@ export default function App() {
   const ended = phase !== 'playing';
   const cpuThinking = mode === 'cpu' && phase === 'playing' && current === 'o';
 
-  /* --- знакомство с ВКонтакте --- */
+  /* --- знакомство с ВКонтакте (никогда не должно ронять игру) --- */
   useEffect(() => {
-    vkBridge.send('VKWebAppInit').catch(() => undefined);
-    vkBridge
-      .send('VKWebAppGetUserInfo')
-      .then((u) => setVkName(u.first_name))
-      .catch(() => undefined);
+    try {
+      vkBridge.send('VKWebAppInit').catch(() => undefined);
+      vkBridge
+        .send('VKWebAppGetUserInfo')
+        .then((u) => setVkName(u.first_name))
+        .catch(() => undefined);
+    } catch {
+      /* вне ВК или без сети — просто играем без имени */
+    }
   }, []);
 
   const clearBoard = (sz: BoardSize) => {
